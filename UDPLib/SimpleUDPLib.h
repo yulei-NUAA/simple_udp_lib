@@ -38,6 +38,21 @@ extern "C" {
 
 #else //code for other platform
 
+//headers for linux socket program
+#include <stdio.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <string.h>
+#include <arpa/inet.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <unistd.h>
+
+#define SOCKET int
+#define ULONG unsigned long
+#define USHORT unsigned short
+#define SOCKADDR_IN struct sockaddr_in
 
 #endif
 
@@ -48,12 +63,12 @@ typedef enum udplib_errorcode{
 	TARGET_FORMAT_INVALID = -200, // invalid dest string format
 	NODE_CREATE_FAILED = -300,    // failed to create node
 	NODE_BIND_FAILED = -400,      // failed to bind node
-	INITALIZED_FAILED = -500,     // failed to inintalized
+	INITALIZED_FAILED = -500     // failed to inintalized
 }UDBLIB_ERRORCODE;
 
 /**************************function defination***************************/
 
-//a simple udp operation lib£¬Specify the IP and port number then you can do udp operation
+//a simple udp operation lib, Specify the IP and port number then you can do udp operation
 
 //************************************
 // Method:    udplib_recv
@@ -72,7 +87,7 @@ UDPLIBDLL_API int udplib_recv(const char source[], const char target[], char rec
 // Method:    udplib_send 
 // FullName:  udplib send function
 // Access:    public 
-// Returns:   int 0 means send succeed£¬other undifined error num returned by sendto
+// Returns:   int 0 means send succeed, other undifined error num returned by sendto
 // Qualifier:
 // Parameter: char source[] source str, format as "xxx.xxx.xxx.xxx:xxxx"
 // Parameter: char target[] dest str, format as "xxx.xxx.xxx.xxx:xxxx"
@@ -87,7 +102,7 @@ UDPLIBDLL_API int udplib_send(char source[], char target[], const char data[], i
 // Method:    udplib_initialize
 // FullName:  udplib_initialize
 // Access:    public 
-// Returns:   int 0 means no error£¬other undefined num returned by WSAStartup
+// Returns:   int 0 means no error, other undefined num returned by WSAStartup
 // Qualifier:
 // Parameter: void
 // Function: initalized net lib
@@ -101,7 +116,7 @@ UDPLIBDLL_API int udplib_initialize(void);
 // Returns:   int 0 means no error, other undefined num returned by WSACleanup
 // Qualifier:
 // Parameter: void
-// Function: clean WSA£¬release all resource
+// Function: cleanup WSA, release all resource
 //************************************
 UDPLIBDLL_API int udplib_deinitialize(void);
 
@@ -109,10 +124,10 @@ UDPLIBDLL_API int udplib_deinitialize(void);
 // Method:    udplib_setblockmode
 // FullName:  the function to set node block mode 
 // Access:    public 
-// Returns:   int  0 means no error£¬other undefined num returned by ioctlsocket
+// Returns:   int  0 means no error, other undefined num returned by ioctlsocket
 // Qualifier:
 // Parameter: const char addr[] format as "xxx.xxx.xxx.xxx:xxxx"
-// Parameter: unsigned long mode 0-bolck£¬1-noblock
+// Parameter: unsigned long mode 0-bolck, 1-noblock
 //************************************
 UDPLIBDLL_API int udplib_setblockmode(const char addr[],unsigned long mode);
 

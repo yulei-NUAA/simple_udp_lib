@@ -18,7 +18,7 @@ using namespace std;
 #include "SimpleUDPLib.h"
 
 //***************** Definition of structure *********************//
-typedef struct
+typedef struct udp_node_data_type
 {
 	bool initalized;
 	SOCKET node_socket;//node socket, 0 means uninitialized
@@ -76,7 +76,7 @@ int udplib_ExtractNodeInfo(const char ipAddr_port[],int &ipaddr,unsigned short &
 // Method:    udplib_initialize
 // FullName:  udplib_initialize
 // Access:    public 
-// Returns:   int 0 means no error£¬other undefined num returned by WSAStartup
+// Returns:   int 0 means no error, other undefined num returned by WSAStartup
 // Qualifier:
 // Parameter: void
 // Function: initalized net lib
@@ -109,8 +109,19 @@ UDPLIBDLL_API int udplib_initialize(void)
 	
 	return 0;
 #else
-	sprintf(stderr,"Unimplemented function");
-	fflush();
+	if (!udplib_initialized) 
+	{
+		printf("========================================\n");
+		printf("            udplib initalize            \n");
+		printf("----------------------------------------\n");
+		// printf("Except Sockets version  : %d.%d\n", (int)HIBYTE(wsaData.wVersion), (int)LOBYTE(wsaData.wVersion));
+		// printf("Highest Sockets version : %d.%d\n", (int)HIBYTE(wsaData.wHighVersion), (int)LOBYTE(wsaData.wHighVersion));
+		// printf("szDescription           : %s\n", wsaData.szDescription);
+		// printf("szSystemStatus          : %s\n", wsaData.szSystemStatus);
+		// printf("----------------------------------------\n");
+		
+		udplib_initialized = true;
+	}
 	return 0;
 #endif
 }
@@ -122,7 +133,7 @@ UDPLIBDLL_API int udplib_initialize(void)
 // Returns:   int 0 means no error, other undefined num returned by WSACleanup
 // Qualifier:
 // Parameter: void
-// Function: clean WSA£¬release all resource
+// Function: clean WSA, release all resource
 //************************************
 UDPLIBDLL_API int udplib_deinitialize(void)
 {
@@ -147,8 +158,22 @@ UDPLIBDLL_API int udplib_deinitialize(void)
 	return 0;
 
 #else
-	sprintf(stderr,"Unimplemented function");
-	fflush();
+	//Traverse connection Map and close all socket links in it
+	for (auto it = local_node_map.begin(); it != local_node_map.end(); it++)
+	{
+		close(it->second.node_socket);
+	}
+	
+	//Release all node resources
+	local_node_map.clear();
+	remote_node_map.clear();
+	
+	if(udplib_initialized)
+	{
+		udplib_initialized = false;
+		// return WSACleanup();
+	}
+	
 	return 0;
 #endif
 }
@@ -197,8 +222,26 @@ int udplib_CreateLocalNode(UDP_NODE_DATA_TYPE &node, int ipaddr, unsigned short 
 	return 0;
 
 #else
-	sprintf(stderr,"Unimplemented function");
-	fflush();
+	node.node_socket = socket(AF_INET, SOCK_DGRAM, 0); //AF_INET:IPV4;SOCK_DGRAM:UDP
+	node.bind_ip = ipaddr;
+	node.bind_port = port_num;
+	if (port_num != 0) {
+		//If the port number is greater than 0, bind
+		//If the input port number is equal to 0, the port will be requested automatically when sending
+		struct sockaddr_in src_sin;
+		src_sin.sin_family = AF_INET;
+		src_sin.sin_port = htons(node.bind_port);
+		src_sin.sin_addr.s_addr = htonl(node.bind_ip);//inet_addr("127.0.0.1");
+		if (bind(node.node_socket,
+			(struct sockaddr *)&src_sin, sizeof(src_sin)) < 0)
+		{
+			printf("port %d bind error !\n", port_num);
+			close(node.node_socket);
+			return NODE_BIND_FAILED;//Binding error
+		}
+		node.node_sin = src_sin;
+	}
+	node.initalized = true;
 	return 0;
 #endif
 
@@ -220,8 +263,18 @@ int udplib_CreateRemoteNode(UDP_NODE_DATA_TYPE &node, int ipaddr, unsigned short
 
 	return 0;
 #else
-	sprintf(stderr,"Unimplemented function");
-	fflush();
+	node.node_socket = socket(AF_INET, SOCK_DGRAM, 0);
+	node.bind_ip = ipaddr;
+	node.bind_port = port_num;
+	
+	struct sockaddr_in node_sin;
+	node_sin.sin_family = AF_INET;
+	node_sin.sin_port = htons(node.bind_port);
+	node_sin.sin_addr.s_addr = htonl(node.bind_ip);//inet_addr("127.0.0.1");
+	node.node_sin = node_sin;
+	
+	node.initalized = true;
+
 	return 0;
 #endif
 }
@@ -230,7 +283,7 @@ int udplib_CreateRemoteNode(UDP_NODE_DATA_TYPE &node, int ipaddr, unsigned short
 // Method:    udplib_send 
 // FullName:  udplib send function
 // Access:    public 
-// Returns:   int 0 means send succeed£¬other undifined error num returned by sendto
+// Returns:   int 0 means send succeed, other undifined error num returned by sendto
 // Qualifier:
 // Parameter: char source[] source str, format as "xxx.xxx.xxx.xxx:xxxx"
 // Parameter: char target[] dest str, format as "xxx.xxx.xxx.xxx:xxxx"
@@ -293,9 +346,58 @@ UDPLIBDLL_API int udplib_send(char source[], char target[], const char data[], i
 	int ret = sendto(src_node.node_socket, data, datalen, 0, (sockaddr *)&dst_node.node_sin, dst_len);
 	return ret;
 #else
-	sprintf(stderr,"Unimplemented function");
-	fflush();
-	return 0;
+	string src_str = source;
+	string dst_str = target;
+	//Determine whether wsdata has been initialized. If not, initialize it
+	if (!udplib_initialized) {
+		int ret = udplib_initialize();
+		if (ret != 0) {
+			//Failed to create node
+			printf("udplib_initialize failed with wsa error code = %d\n", ret);
+			return ret;
+		}
+	}
+
+	//Determine whether the send port has been created. If not, create it
+	int ipaddr;
+	unsigned short port_num;
+	UDP_NODE_DATA_TYPE src_node, dst_node;
+	//Query whether the target has the corresponding socket information, if not, create the corresponding socket
+	src_node = local_node_map[src_str];
+	if (!src_node.initalized)
+	{
+		if (udplib_ExtractNodeInfo(source, ipaddr, port_num) != 0)
+			return SOURCE_FORMAT_INVALID;//Incorrect source address
+		//The send port is not initialized. Initialize the port
+		int ret = udplib_CreateLocalNode(src_node, ipaddr, port_num);
+		if (ret == 0)//Node created successfully
+			local_node_map[src_str] = src_node;
+		else
+		{
+			printf("node [%s] create failed!\n", source);
+			return NODE_CREATE_FAILED;
+		}
+	}
+	//Get destination IP and port number
+	dst_node = remote_node_map[dst_str];
+	if (!dst_node.initalized)
+	{
+		if (udplib_ExtractNodeInfo(target, ipaddr, port_num) != 0)
+			return TARGET_FORMAT_INVALID;//The destination address is incorrect
+		int ret = udplib_CreateRemoteNode(dst_node, ipaddr, port_num);
+		if (ret == 0)
+		{
+			remote_node_map[dst_str] = dst_node;
+		}
+		else {
+			return NODE_CREATE_FAILED;
+		}
+		
+	}
+	int dst_len = sizeof(dst_node.node_sin);
+	//send data
+	int ret = sendto(src_node.node_socket, data, datalen, 0, (sockaddr *)&dst_node.node_sin, dst_len);
+	return ret;
 #endif
 }
 
@@ -365,9 +467,56 @@ UDPLIBDLL_API int udplib_recv(const char source[], const char target[], char rec
 	
 	return ret;
 #else
-	sprintf(stderr,"Unimplemented function");
-	fflush();
-	return 0;
+	string src_str = source;
+	string dst_str = target;
+	//Determine whether wsdata has been initialized. If not, initialize it
+	if (!udplib_initialized) {
+		int ret = udplib_initialize();
+		if (ret != 0) {
+			//Failed to create node
+			printf("udplib_initialize failed with wsa error code = %d\n", ret);
+			return INITALIZED_FAILED;
+		}
+	}
+
+	//Determine whether the send port has been created. If not, create it
+	int ipaddr;
+	unsigned short port_num;
+	UDP_NODE_DATA_TYPE src_node, dst_node;
+	//Determine whether the source string format is correct
+	src_node = remote_node_map[src_str];
+	if (!src_node.initalized)
+	{
+		if (udplib_ExtractNodeInfo(source, ipaddr, port_num) != 0)
+			return SOURCE_FORMAT_INVALID;//Incorrect source address
+		//The send port is not initialized. Initialize the port
+		int ret = udplib_CreateRemoteNode(src_node, ipaddr, port_num);
+		if (ret == 0)//Node created successfully
+			remote_node_map[src_str] = src_node;
+		else
+			return NODE_CREATE_FAILED;
+	}
+	
+	//Determine whether the target node has been created. If not, create it
+	dst_node = local_node_map[dst_str];
+	if (!dst_node.initalized)
+	{
+		if (udplib_ExtractNodeInfo(target, ipaddr, port_num) != 0)
+			return TARGET_FORMAT_INVALID;//The destination address is incorrect
+		int ret = udplib_CreateLocalNode(dst_node, ipaddr, port_num);
+		if (ret == 0)
+		{
+			local_node_map[dst_str] = dst_node;
+		}
+		else {
+			return NODE_CREATE_FAILED;
+		}
+	}
+	socklen_t sin_len = sizeof(src_node.node_sin);
+	//receive data
+	int ret = recvfrom(dst_node.node_socket, recv_buf, max_datalen, 0, (sockaddr *)&(src_node.node_sin), &sin_len);
+	
+	return ret;
 #endif
 }
 
@@ -375,10 +524,10 @@ UDPLIBDLL_API int udplib_recv(const char source[], const char target[], char rec
 // Method:    udplib_setblockmode
 // FullName:  the function to set node block mode 
 // Access:    public 
-// Returns:   int  0 means no error£¬other undefined num returned by ioctlsocket
+// Returns:   int  0 means no error, other undefined num returned by ioctlsocket
 // Qualifier:
 // Parameter: const char addr[] format as "xxx.xxx.xxx.xxx:xxxx"
-// Parameter: unsigned long mode 0-bolck£¬1-noblock
+// Parameter: unsigned long mode 0-bolck, 1-noblock
 //************************************
 UDPLIBDLL_API int udplib_setblockmode(const char addr[], unsigned long mode)
 {
@@ -422,8 +571,61 @@ UDPLIBDLL_API int udplib_setblockmode(const char addr[], unsigned long mode)
 	local_node_map[dst_str] = dst_node;
 	return 0;
 #else
-	sprintf(stderr,"Unimplemented function");
-	fflush();
+	if (!udplib_initialized) {
+		int ret = udplib_initialize();
+		if (ret != 0) {
+			//Failed to create node
+			printf("udplib_initialize failed with wsa error code = %d\n", ret);
+			return INITALIZED_FAILED;
+		}
+	}
+
+	string dst_str = addr;
+	int ipaddr;
+	unsigned short port_num;
+	UDP_NODE_DATA_TYPE dst_node;
+	//Query whether the target has the corresponding socket information, if not, create the corresponding socket
+	dst_node = local_node_map[dst_str];
+	if (!dst_node.initalized)
+	{
+		if (udplib_ExtractNodeInfo(addr, ipaddr, port_num) != 0)
+			return SOURCE_FORMAT_INVALID;//Incorrect source address
+					 //The send port is not initialized. Initialize the port
+		int ret = udplib_CreateLocalNode(dst_node, ipaddr, port_num);
+		if (ret == 0)//Node created successfully
+			local_node_map[dst_str] = dst_node;
+		else
+		{
+			printf("node [%s] create failed!\n", addr);
+			return NODE_CREATE_FAILED;
+		}
+	}
+	dst_node.blockmode = mode;
+	if(dst_node.blockmode != 0)
+	{//set socket to noblock mode
+		int flags = fcntl(dst_node.node_socket, F_GETFL, 0);
+		/* set socket to noblock mode*/
+		int ret = fcntl(dst_node.node_socket, F_SETFL, flags | O_NONBLOCK);
+		if(ret < 0)
+		{
+			printf("ioctlsocket failed with error: %ld\n", ret);
+			return ret;
+		}
+	}
+	else
+	{//set socket to block mode
+		int flags = fcntl(dst_node.node_socket, F_GETFL, 0);
+		/* set socket to noblock mode*/
+		flags &= ~O_NONBLOCK;
+		int ret = fcntl(dst_node.node_socket, F_SETFL, flags);
+		if(ret < 0)
+		{
+			printf("ioctlsocket failed with error: %ld\n", ret);
+			return ret;
+		}
+	}
+	
+	local_node_map[dst_str] = dst_node;
 	return 0;
 #endif
 }
