@@ -1,13 +1,18 @@
 # simple_udp_lib
 A simple UDP operation function library. You can use two or three functions to complete all UDP operations. Such as “udplib_send”, “udplib_recv” and "udplib_setblockmode".
 
-# features
+# Features
 - Simple
 - C and C + + compatible
 - Cross platform (Windows vs and Linux gcc)
 - Use IP and port numbers in string as nodes
 
-# how to use
+# How to use
+## With Visutal Studio Tools
+Open the "UDPDemo.sln" solution file and compile to run test cases or generate dynamic library
+## With GCC tools
+Enter the project directory through the terminal and run the command "make" to compile the test code.
+## Add Lib to project
 Add the source code or dynamic library to your project and include the header file "simpleudplib.h" to call the UDP operation functions.
 
 # Function manual
