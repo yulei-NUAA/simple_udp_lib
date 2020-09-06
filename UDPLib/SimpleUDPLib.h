@@ -27,7 +27,7 @@ extern "C" {
 	#endif
 #endif
 
-#ifdef _WIN32 || _WIN64
+#if ((defined _WIN32) || (defined _WIN64))
 //Check platform windows version
 //include winsock files and libs
 #include <winsock2.h>

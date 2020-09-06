@@ -10,26 +10,28 @@ EXECUTABLES :=
 OBJS := 
 C_DEPS := 
 
-TARGET := MakefileDemo
+TARGET := LibDemo.exec
 
 # Every subdirectory with source files must be described here
 SUBDIRS := .
 
-C_SRCS += ./TimeMeasureDemoC.c 
+C_SRCS += ./UDPLibDemo/UDPLibDemo.cpp ./UDPLib/SimpleUDPLib.cpp
 
-OBJS += ./TimeMeasureDemoC.o
+OBJS += ./UDPLibDemo/UDPLibDemo.o ./UDPLib/SimpleUDPLib.o
 
-C_DEPS += ./TimeMeasureDemoC.d
+C_DEPS += ./UDPLibDemo/UDPLibDemo.d ./UDPLib/SimpleUDPLib.d
 
-# vpath .c/.h/.o/.d
+CF_FLAGS = -O0 -g3 -Wall -c -fmessage-length=0 -MMD -MP -I$(shell pwd)/UDPLib -DUSE_UDP_LIB_SOURCE_CODE
+
 
 # Each subdirectory must supply rules for building sources it contributes
-%.o: ./%.c
+%.o:%.cpp
 	@echo 'Building file: $<'
 	@echo 'Invoking: GCC C Compiler'
-	gcc -O0 -g3 -Wall -c -fmessage-length=0 -MMD -MP -MF"$(@:%.o=%.d)" -MT"$(@)" -o "$@" "$<"
+	g++ $(CF_FLAGS) -MF"$(@:%.o=%.d)" -MT"$(@)" -o "$@" "$<"
 	@echo 'Finished building: $<'
 	@echo ' '
+	
 
 USER_OBJS :=
 
@@ -41,27 +43,24 @@ LIBS :=
 
 # All Target
 all: $(TARGET)
-
+	echo make all command
 # Tool invocations
 $(TARGET): $(OBJS) $(USER_OBJS)
 	@echo 'Building target: $@'
 	@echo 'Invoking: GCC C Linker'
-	gcc  -o "$(TARGET)" $(OBJS) $(USER_OBJS) $(LIBS)
+	g++ -o "$(TARGET)" $(OBJS) $(USER_OBJS) $(LIBS)
 	@echo 'Finished building target: $@'
 	@echo ' '
 
 # Other Targets
 clean:
-	-$(RM) $(EXECUTABLES)$(OBJS)$(C_DEPS) $(TARGET)
+	-$(RM) $(EXECUTABLES) $(OBJS) $(C_DEPS) $(TARGET)
 	-@echo ' '
 
 
 .PHONY: all clean dependents
 
 debug:
-	@echo MAKECMDGOALS = $(MAKECMDGOALS)
-	@echo C_DEPS = $(C_DEPS)
-	@echo EXECUTABLES = $(EXECUTABLES)ug:
 	@echo MAKECMDGOALS = $(MAKECMDGOALS)
 	@echo C_DEPS = $(C_DEPS)
 	@echo EXECUTABLES = $(EXECUTABLES)
