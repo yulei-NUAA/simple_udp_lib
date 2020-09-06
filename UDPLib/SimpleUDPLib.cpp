@@ -83,7 +83,7 @@ int udplib_ExtractNodeInfo(const char ipAddr_port[],int &ipaddr,unsigned short &
 //************************************
 UDPLIBDLL_API int udplib_initialize(void)
 {
-#ifdef _WIN32 || _WIN64
+#if ((defined _WIN32) || (defined _WIN64))
 	if (!udplib_initialized) 
 	{
 		WSADATA wsaData;
@@ -137,7 +137,7 @@ UDPLIBDLL_API int udplib_initialize(void)
 //************************************
 UDPLIBDLL_API int udplib_deinitialize(void)
 {
-#ifdef _WIN32 || _WIN64
+#if ((defined _WIN32) || (defined _WIN64))
 	
 	//Traverse connection Map and close all socket links in it
 	for (auto it = local_node_map.begin(); it != local_node_map.end(); it++)
@@ -198,7 +198,7 @@ int udplib_DestoryNode(char target[])
 
 int udplib_CreateLocalNode(UDP_NODE_DATA_TYPE &node, int ipaddr, unsigned short port_num)
 {
-#ifdef _WIN32 || _WIN64
+#if ((defined _WIN32) || (defined _WIN64))
 	node.node_socket = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
 	node.bind_ip = ipaddr;
 	node.bind_port = port_num;
@@ -248,7 +248,7 @@ int udplib_CreateLocalNode(UDP_NODE_DATA_TYPE &node, int ipaddr, unsigned short 
 }
 int udplib_CreateRemoteNode(UDP_NODE_DATA_TYPE &node, int ipaddr, unsigned short port_num)
 {
-#ifdef _WIN32 || _WIN64
+#if ((defined _WIN32) || (defined _WIN64))
 	node.node_socket = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
 	node.bind_ip = ipaddr;
 	node.bind_port = port_num;
@@ -292,7 +292,7 @@ int udplib_CreateRemoteNode(UDP_NODE_DATA_TYPE &node, int ipaddr, unsigned short
 //************************************
 UDPLIBDLL_API int udplib_send(char source[], char target[], const char data[], int datalen)
 {
-#ifdef _WIN32 || _WIN64
+#if ((defined _WIN32) || (defined _WIN64))
 	string src_str = source;
 	string dst_str = target;
 	//Determine whether wsdata has been initialized. If not, initialize it
@@ -415,7 +415,7 @@ UDPLIBDLL_API int udplib_send(char source[], char target[], const char data[], i
 //************************************
 UDPLIBDLL_API int udplib_recv(const char source[], const char target[], char recv_buf[], int max_datalen)
 {
-#ifdef _WIN32 || _WIN64
+#if ((defined _WIN32) || (defined _WIN64))
 	string src_str = source;
 	string dst_str = target;
 	//Determine whether wsdata has been initialized. If not, initialize it
@@ -531,7 +531,7 @@ UDPLIBDLL_API int udplib_recv(const char source[], const char target[], char rec
 //************************************
 UDPLIBDLL_API int udplib_setblockmode(const char addr[], unsigned long mode)
 {
-#ifdef _WIN32 || _WIN64
+#if ((defined _WIN32) || (defined _WIN64))
 	if (!udplib_initialized) {
 		int ret = udplib_initialize();
 		if (ret != 0) {
@@ -608,7 +608,7 @@ UDPLIBDLL_API int udplib_setblockmode(const char addr[], unsigned long mode)
 		int ret = fcntl(dst_node.node_socket, F_SETFL, flags | O_NONBLOCK);
 		if(ret < 0)
 		{
-			printf("ioctlsocket failed with error: %ld\n", ret);
+			printf("ioctlsocket failed with error: %d\n", ret);
 			return ret;
 		}
 	}
@@ -620,7 +620,7 @@ UDPLIBDLL_API int udplib_setblockmode(const char addr[], unsigned long mode)
 		int ret = fcntl(dst_node.node_socket, F_SETFL, flags);
 		if(ret < 0)
 		{
-			printf("ioctlsocket failed with error: %ld\n", ret);
+			printf("ioctlsocket failed with error: %d\n", ret);
 			return ret;
 		}
 	}

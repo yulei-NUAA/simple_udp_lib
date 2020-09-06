@@ -61,4 +61,8 @@ clean:
 debug:
 	@echo MAKECMDGOALS = $(MAKECMDGOALS)
 	@echo C_DEPS = $(C_DEPS)
+	@echo EXECUTABLES = $(EXECUTABLES)ug:
+	@echo MAKECMDGOALS = $(MAKECMDGOALS)
+	@echo C_DEPS = $(C_DEPS)
 	@echo EXECUTABLES = $(EXECUTABLES)
+	@echo OBJS = $(OBJS)
